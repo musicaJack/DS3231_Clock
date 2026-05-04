@@ -5,6 +5,7 @@
 [![Version](https://img.shields.io/badge/Version-3.1.0-green.svg)]
 
 [English](README.md) | 中文
+ <img src="imgs/analog-clock.jpg" width="240" />
 
 基于 **树莓派 Pico（RP2040）** 的固件：通过 **DS3231** 实时时钟与 **ILI9488** 3.5 寸屏（320×480，竖屏）显示**模拟表盘**（1–12 数字、刻度圈、时针/分针/秒针），底部水平居中显示 **`MM/DD`** 与 **英文星期**。显示用的日期与时间**仅以 DS3231 为准**，主循环不用本地软件累计代替走时。**USB 串口**可校时，写入成功后时间保存在 DS3231 芯片内（带电池的模块掉电仍可走时）。
 

@@ -5,6 +5,7 @@
 [![Version](https://img.shields.io/badge/Version-3.1.0-green.svg)]
 
 English | [中文](README.zh.md)
+ <img src="imgs/analog-clock.jpg" width="240" />
 
 Firmware for **Raspberry Pi Pico (RP2040)** that drives a **DS3231** real-time clock and a **3.5″ ILI9488** LCD (320×480, portrait) with an **analog-style watch face**: hour numerals, tick ring, three hands, and a **bottom-centered** `MM/DD` + **English weekday** line. Time and calendar are read from the **DS3231 only**; the MCU does not run a free-running software clock for display. **USB serial** can set the RTC; successful writes go to the chip (battery-backed modules keep time across power loss).
 
