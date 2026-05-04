@@ -1,7 +1,7 @@
 /**
  * DS3231 + ILI9488 模拟时钟 + USB CDC 串口校时
  * I2C1: SDA=GPIO7, SCL=GPIO6
- * ILI9488: SPI0（引脚见 lib/display/include/pin_config.hpp）
+ * ILI9488: SPI0（pins: lib/display/include/pin_config.hpp）
  *
  * 【时间源】表盘与日期/星期仅依赖 I2C 读回的 DS3231（模块带电池则掉电仍走时）。
  * 主循环内无任何本地「软件时钟」累加秒；秒针刷新节拍由 RTC 的「秒」变化触发。

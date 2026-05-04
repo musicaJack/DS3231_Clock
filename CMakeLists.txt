@@ -13,15 +13,16 @@ pico_sdk_init()
 add_subdirectory(lib/display)
 
 add_executable(ds3231_clock
-    main.cpp
-    analog_clock.cpp
-    gfx_clock.cpp
-    usb_time_sync.cpp
+    apps/ds3231_clock/main.cpp
+    src/clock/analog_clock.cpp
+    src/clock/gfx_clock.cpp
+    src/sync/usb_time_sync.cpp
     lib/ds3231/ds3231_driver.cpp
 )
 
 target_include_directories(ds3231_clock PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/clock
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sync
     ${CMAKE_CURRENT_SOURCE_DIR}/lib/ds3231
 )
 

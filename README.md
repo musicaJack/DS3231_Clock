@@ -1,37 +1,111 @@
-# DS3231_Clock
+# DS3231 Clock (RP2040)
 
-RP2040 + **DS3231** + **ILI9488** 3.5″（320×480）模拟表盘；顶/底显示日期与星期。**时间与日期仅以 DS3231 为准**（模块装电池则掉电仍走时）；**USB 校时成功后会写入 DS3231**，掉电后仍保持。
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Raspberry%20Pi%20Pico%20W-red.svg)](https://www.raspberrypi.com/products/raspberry-pi-pico/)
+[![Version](https://img.shields.io/badge/Version-3.1.0-green.svg)]
 
-## 硬件接线
+English | [中文](README.zh.md)
 
-| 功能 | 接口 | 引脚 |
-|------|------|------|
-| DS3231 | I2C1 | SDA = **GPIO7**，SCL = **GPIO6** |
-| ILI9488 | SPI0 | SCK=18, MOSI=19, CS=17, DC=20, RST=15, BL=16 |
+Firmware for **Raspberry Pi Pico (RP2040)** that drives a **DS3231** real-time clock and a **3.5″ ILI9488** LCD (320×480, portrait) with an **analog-style watch face**: hour numerals, tick ring, three hands, and a **bottom-centered** `MM/DD` + **English weekday** line. Time and calendar are read from the **DS3231 only**; the MCU does not run a free-running software clock for display. **USB serial** can set the RTC; successful writes go to the chip (battery-backed modules keep time across power loss).
 
-详见 `lib/display/include/pin_config.hpp`（与 PicoBoard_Games_ILI9488 一致）。**DS3231 占用 GP6/GP7**，与 SPI 屏无冲突。
 
-## 构建
+---
 
-需安装 [Pico SDK](https://github.com/raspberrypi/pico-sdk)，并设置环境变量 `PICO_SDK_PATH`。
+## Features
+
+- DS3231 over **I2C1**; ILI9488 over **SPI0** (40 MHz in `pin_config.hpp`).
+- Analog dial refresh driven by the RTC **second** register change (not busy-loop timing).
+- USB CDC (TinyUSB) **non-blocking** line input for time sync.
+- Optional integration surfaces: `AnalogClockView`, DS3231 APIs in `lib/ds3231`, USB helpers in `src/sync/`.
+
+---
+
+## Repository layout
+
+| Path | Role |
+|------|------|
+| `apps/ds3231_clock/main.cpp` | Application entry: init hardware, main loop. |
+| `src/clock/` | Watch UI: `AnalogClockView`, `gfx_clock` primitives. |
+| `src/sync/` | USB time-sync parsing and RTC write helpers. |
+| `lib/ds3231/` | DS3231 driver (`ds3231.h`, `ds3231_driver.cpp`). |
+| `lib/display/` | ILI9488 driver stack (CMake target `display`). |
+
+Include paths for the firmware target: `src/clock`, `src/sync`, and `lib/ds3231` (see root `CMakeLists.txt`).
+
+---
+
+## Hardware connections
+
+### DS3231 (I2C1)
+
+| Signal | GPIO |
+|--------|------|
+| SDA | **GP7** |
+| SCL | **GP6** |
+
+Use **I2C1** only for the RTC on these pins unless you change the wiring and `main.cpp` constants.
+
+### ILI9488 (SPI0)
+
+Defined in `lib/display/include/pin_config.hpp` (same mapping as the PicoBoard_Games_ILI9488 reference):
+
+| Signal | GPIO |
+|--------|------|
+| SCK | GP18 |
+| MOSI | GP19 |
+| CS | GP17 |
+| DC | GP20 |
+| RST | GP15 |
+| BL (backlight PWM) | GP16 |
+
+SPI instance: **SPI0**, 40 MHz. MISO is unused (`255`).
+
+**Note:** DS3231 pins **do not** overlap the SPI display pins.
+
+---
+
+## Build
+
+Requirements:
+
+- [Raspberry Pi Pico SDK](https://github.com/raspberrypi/pico-sdk)
+- Environment variable **`PICO_SDK_PATH`** pointing at the SDK root
+- Ninja (optional) or another CMake generator
 
 ```bash
+cd DS3231_Clock
 mkdir build && cd build
 cmake -G Ninja ..
 cmake --build .
 ```
 
-生成 `ds3231_clock.uf2`，拖入 Pico 烧录。
+Artifacts (under `build/`): `ds3231_clock.elf`, and usually `ds3231_clock.uf2` for drag-and-drop programming on Pico.
 
-## 使用
+---
 
-1. 上电后从 **DS3231** 读时显示；USB 串口可输入 **`hh:mm:ss`** 或 **`YYYY-MM-DD hh:mm:ss`**（例 `2026-05-03 14:30:00`），回车后写入 **DS3231 芯片**。
-2. 指针与日期刷新节律由 RTC 的「秒」变化驱动；**不使用 RP2040 本地软件计时替代 RTC**。
+## Usage
 
-## 源码说明
+1. Power on; the firmware reads time from the DS3231 and draws the dial.
+2. Open the USB CDC serial port (e.g. 115200 if you rely on defaults elsewhere; stdio is initialized by the SDK).
+3. Send a line and press Enter:
+   - `hh:mm:ss` — set time of day (date left unchanged by reading back RTC first where implemented).
+   - `YYYY-MM-DD hh:mm:ss` or `YYYY-MM-DDThh:mm:ss` — full date and time (weekday computed for DS3231).
 
-- `lib/ds3231/`：RTC 驱动  
-- `lib/display/`：ILI9488 驱动（源自游戏演示工程，已精简 CMake，去掉摇杆/可选字体库）  
-- `analog_clock.*`：表盘绘制  
-- `usb_time_sync.*`：USB 行编辑与校时  
-- `gfx_clock.*`：线段/圆等绘图封装  
+See `usb_time_sync.cpp` for exact parsing rules and return codes of `usb_sync_poll_line`.
+
+---
+
+## Integration notes (API sketch)
+
+- **RTC:** `ds3231_init`, `ds3231_read_time`, `ds3231_write_time`, etc. — `lib/ds3231/ds3231.h`.
+- **Display:** `ili9488::ILI9488Driver` — `lib/display/include/ili9488_driver.hpp`; link CMake target `display`.
+- **Watch face:** `AnalogClockView` — `src/clock/analog_clock.hpp`; requires an initialized `ILI9488Driver`.
+- **USB sync:** `usb_sync_poll_line`, `rtc_set_datetime`, … — `src/sync/usb_time_sync.hpp`.
+
+Link order (CMake): `display`, `pico_stdlib`, `hardware_i2c`, `hardware_spi`, `hardware_pwm`, plus TinyUSB via stdio USB as configured.
+
+---
+
+## License
+
+See [LICENSE](LICENSE) in the repository root.
