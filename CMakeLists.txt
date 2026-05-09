@@ -15,6 +15,7 @@ add_subdirectory(lib/display)
 add_executable(ds3231_clock
     apps/ds3231_clock/main.cpp
     src/clock/analog_clock.cpp
+    src/clock/calendar_month_view.cpp
     src/clock/gfx_clock.cpp
     src/sync/usb_time_sync.cpp
     lib/ds3231/ds3231_driver.cpp
