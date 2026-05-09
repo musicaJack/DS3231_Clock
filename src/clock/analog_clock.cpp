@@ -12,11 +12,7 @@ namespace c565 = ili9488_colors::rgb565;
 namespace c888 = ili9488_colors::rgb888;
 
 namespace {
-/**
- * 字体与布局（320×480 竖屏）：
- * - 日历：2×（16×32），底部水平居中；指针圆心不在底部，日历区不走秒刷新。
- * - 数字：2×（16×32），贴合刻度内沿；双位数宽约 32px，与小时角距匹配。
- */
+/** Typography (320x480 portrait): calendar strip 2x (16x32), bottom-centered; dial numerals 2x against ticks. */
 constexpr unsigned kCalFontScale = 2u;
 constexpr int kFontCellW = 8 * static_cast<int>(kCalFontScale);
 constexpr int kFontCellH = 16 * static_cast<int>(kCalFontScale);
@@ -25,24 +21,21 @@ constexpr unsigned kDialNumScale = 2u;
 constexpr int kDialCellW = 8 * static_cast<int>(kDialNumScale);
 constexpr int kDialCellH = 16 * static_cast<int>(kDialNumScale);
 
-/** 底部两行日历距屏底边（像素） */
+/** Bottom calendar strip: distance from screen bottom (px) */
 constexpr int kCalBottomMargin = 14;
 constexpr int kCalEdgePad = 2;
-/** 两行日历间距（像素，2× 字时略加） */
+/** Gap between the two calendar text lines (px) */
 constexpr int kCalLineGap = 4;
-/** 整点长刻度：线段内端半径 = radius_ − 该值（与数字对齐用 r_tick_in） */
+/** Major ticks: inner endpoint radius = radius_ minus this (see r_tick_in in draw_hour_numerals) */
 constexpr int kTickInnerInset = 14;
-/** 非整点短刻度：内端更靠近外圈，仅缩短细分档长度，不改变整点长刻度 */
+/** Minor ticks: shorter chord only; major tick length unchanged */
 constexpr int kTickInnerInsetMinorShort = 8;
-/** 数字框「靠刻度一侧」最外沿的目标半径 = r_tick_in − gap（详见 draw_hour_numerals 按角度的 support 对齐） */
+/** Radial gap between tick inner circle and numeral outer edge */
 constexpr int kNumeralRadialGapPx = 2;
-/**
- * false：分针仅在「分钟寄存器」变化时换角度（走秒时不擦分针，省电减闪）；
- * true：分针随秒微扫（每秒更新针尖，模拟机械表）。
- */
+/** false: minute hand moves on minute change only; true: sweep each second */
 constexpr bool kMinuteHandSweep = false;
 
-/** 与 usb_time_sync 中相同的 Sakamoto 公式；返回 1=Sunday … 7=Saturday（与 DS3231 星期寄存器约定一致） */
+/** Sakamoto weekday; result 1=Sunday .. 7=Saturday (DS3231 day register convention) */
 unsigned weekday_ds3231_from_gregorian(unsigned y_full, unsigned mo, unsigned d) {
     int y = static_cast<int>(y_full);
     int m = static_cast<int>(mo);
@@ -59,19 +52,17 @@ unsigned weekday_ds3231_from_gregorian(unsigned y_full, unsigned mo, unsigned d)
 }
 }  // namespace
 
-/**
- * 参考主盘：黑底、银白铁路轨式刻度、剑形白/银指针、红秒针。
- */
+/** Dial palette: black face, silver railroad ticks, white/silver hands, red second */
 namespace dial_palette {
 constexpr uint16_t kFace = c565::BLACK;
-/** 外圈细环：深炭灰 */
+/** Thin outer ring */
 constexpr uint16_t kRing = 0x3186U;
-/** 细分刻度：冷灰 */
+/** Minor ticks */
 constexpr uint16_t kTickMinor = 0x5ACBU;
-/** 整点刻度：亮银白 */
+/** Major ticks */
 constexpr uint16_t kTickMajor = 0xDEFBU;
-constexpr uint16_t kHandHour = 0xFFDFU;   // 近白
-constexpr uint16_t kHandMinute = 0xDEDBU; // 略暗银
+constexpr uint16_t kHandHour = 0xFFDFU;
+constexpr uint16_t kHandMinute = 0xDEDBU;
 constexpr uint16_t kHandSecond = c565::RED;
 constexpr uint16_t kHub = 0xCE79U;
 }  // namespace dial_palette
@@ -139,11 +130,7 @@ void AnalogClockView::draw_hour_numerals() {
         const float rad = ang * (3.14159265f / 180.f);
         const float ux = sinf(rad);
         const float uy = -cosf(rad);
-        /*
-         * 轴对齐字框沿「时针径向」外侧的支撑深度：与矩形 support 一致，
-         * 使框上离圆心最远一角落在固定半径 R_outer —— 这样单位数字（外侧投影主要为宽度的一半）
-         * 会与 10/11/12（外侧投影主要为高度的一半）到刻度的视觉距离一致。
-         */
+        /* Axis-aligned glyph box: outer corner on circle R_outer so single digits and 10/11/12 align visually. */
         const float extent = std::fabs(ux) * ax + std::fabs(uy) * ay;
         const float r_c = R_outer - extent;
 
@@ -305,7 +292,7 @@ void AnalogClockView::on_second_tick(const ds3231_time_t& t) {
     const bool hour_moved = (nhx != h_x1_ || nhy != h_y1_);
     const bool minute_moved = (nmx != m_x1_ || nmy != m_y1_);
 
-    /* 秒针：每秒必更新 */
+    /* Second hand updates every RTC second */
     erase_hand(cx_, cy_, s_x1_, s_y1_, s_th_);
 
     if (hour_moved) {
@@ -323,11 +310,7 @@ void AnalogClockView::on_second_tick(const ds3231_time_t& t) {
 
     draw_hour_numerals();
 
-    /* 统一按「时针→分针→秒针」叠画，修补各类擦除带来的断痕：
-     * - 擦秒针：可能划过静止的时针、分针；
-     * - 擦分针（针尖位移时）：粗线亦可能划过时针重叠段；
-     * - 擦时针：短射线仍可能划过与其交叉的分针内侧段。
-     * 下层先画满时针，再画分针（重叠处为分针压时针），最后秒针最上。 */
+    /* Paint hour then minute then second so overlaps recover after partial erasure */
     draw_hand(cx_, cy_, nhx, nhy, h_th_, col_hand_hour_);
     draw_hand(cx_, cy_, nmx, nmy, m_th_, col_hand_minute_);
     draw_hand(cx_, cy_, nsx, nsy, s_th_, col_hand_second_);

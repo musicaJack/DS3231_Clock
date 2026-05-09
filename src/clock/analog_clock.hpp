@@ -9,9 +9,9 @@ class ILI9488Driver;
 }
 
 /**
- * 320×480：黑底模拟表盘（银白刻度、1–12 数字、白/银指针、红秒针）。
- * 底部水平居中：MM/DD + 星期，2× 字；1–12 为 2× 字。日历 overlay 仅在内容变化时绘制，避免秒级闪烁。
- * 默认分针按分钟跳步（见 analog_clock.cpp）。刻度：秒走补单格；时/分针动时整圈补刻度。
+ * 320x480 portrait analog dial: silver ticks, 1-12 numerals, white/silver hands, red second hand.
+ * Bottom-centered MM/DD + English weekday at 2x scale; numerals at 2x. Calendar overlay redraws only when date text
+ * changes to avoid flicker. Minute hand steps once per minute by default (see analog_clock.cpp).
  */
 class AnalogClockView {
 public:
@@ -23,7 +23,7 @@ public:
 
     void force_hands_sync(const ds3231_time_t& t);
 
-    /** 日期/星期变化时更新缓存并 force_hands_sync；底部日历仅此时重绘 */
+    /** When date or weekday label changes: refresh cache and force_hands_sync; bottom strip redraws then */
     void refresh_calendar_ui(const ds3231_time_t& t);
 
 private:
@@ -35,7 +35,7 @@ private:
     void tip_from_time(float angle_deg_from_12cw, int length, int* tx, int* ty) const;
 
     void draw_hour_numerals();
-    /** 底部居中铺底 + MM/DD 与星期；由 draw_all_hands_at 在 calendar_overlay_dirty_ 时调用 */
+    /** Erase band + MM/DD + weekday; called from draw_all_hands_at when calendar_overlay_dirty_ */
     void paint_calendar_overlay();
     void draw_all_hands_at(const ds3231_time_t& t);
 
@@ -56,14 +56,14 @@ private:
 
     bool hands_ok_{false};
     int h_x1_{0}, h_y1_{0}, m_x1_{0}, m_y1_{0}, s_x1_{0}, s_y1_{0};
-    /** 上一帧已绘制的「秒针所指刻度」索引，用于补回被秒针擦掉的单根刻度 */
+    /** Last drawn second-hand tick index; used to restore one tick erased by the second hand */
     uint8_t last_drawn_sec_{0};
 
     int h_th_{7}, m_th_{5}, s_th_{2};
     int h_len_{50}, m_len_{92}, s_len_{112};
 
     bool calendar_valid_{false};
-    /** 为 true 时 draw_all_hands_at 末尾绘制底部日历并清回 false */
+    /** When true, draw_all_hands_at draws bottom calendar strip then clears this flag */
     bool calendar_overlay_dirty_{false};
     char last_date_shown_[8]{};
     char last_week_shown_[8]{};

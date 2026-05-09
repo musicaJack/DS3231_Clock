@@ -23,7 +23,7 @@ static void trim_inplace(char* str) {
     }
 }
 
-/** Sakamoto：返回值 0=Sunday … 6=Saturday（与 DS3231 的「星期」换算一致：+1 得 1=Sunday） */
+/** Sakamoto; returns 0=Sunday .. 6=Saturday; DS3231 uses +1 => 1=Sunday */
 static int weekday_sun0_sat6(int y, int m, int d) {
     static const int t[] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
     if (m < 3) {
@@ -48,7 +48,7 @@ static uint8_t ds3231_weekday_from_date(unsigned full_year, unsigned month, unsi
     int w = weekday_sun0_sat6(static_cast<int>(full_year), static_cast<int>(month), static_cast<int>(date));
     if (w < 0)
         w += 7;
-    /* DS3231：1–7，1=Sunday */
+    /* DS3231 day register: 1-7, 1=Sunday */
     return static_cast<uint8_t>(static_cast<unsigned>(w) + 1u);
 }
 
@@ -100,7 +100,7 @@ static bool parse_hms(const char* str, uint8_t* h, uint8_t* m, uint8_t* s) {
 static bool parse_ymd_hms(const char* str, unsigned* y_full, unsigned* mo, unsigned* d, uint8_t* h, uint8_t* m,
                           uint8_t* s) {
     int Y, M, D, hh, mm, ss;
-    /* yyyy-mm-dd hh:mm:ss 或 yyyy-mm-ddThh:mm:ss（ISO 常用） */
+    /* yyyy-mm-dd hh:mm:ss or yyyy-mm-ddThh:mm:ss */
     int n = std::sscanf(str, "%d-%d-%d %d:%d:%d", &Y, &M, &D, &hh, &mm, &ss);
     if (n != 6)
         n = std::sscanf(str, "%d-%d-%dT%d:%d:%d", &Y, &M, &D, &hh, &mm, &ss);

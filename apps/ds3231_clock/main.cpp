@@ -1,14 +1,14 @@
 /**
- * DS3231 + ILI9488 模拟时钟 + USB CDC 串口校时
+ * DS3231 + ILI9488 analog clock with USB CDC time sync.
  * I2C1: SDA=GPIO7, SCL=GPIO6
- * ILI9488: SPI0（pins: lib/display/include/pin_config.hpp）
+ * ILI9488: SPI0 (pins: lib/display/include/pin_config.hpp)
  *
- * 【时间源】表盘与日期/星期仅依赖 I2C 读回的 DS3231（模块带电池则掉电仍走时）。
- * 主循环内无任何本地「软件时钟」累加秒；秒针刷新节拍由 RTC 的「秒」变化触发。
- * 【校时】USB 解析成功后一律调用 ds3231_write_time 写入芯片（hh:mm:ss 与 YYYY-MM-DD hh:mm:ss）。
+ * Time source: dial and date/weekday come only from I2C DS3231 reads (battery-backed RTC keeps time).
+ * No software-only clock in the main loop; second hand advances when the RTC seconds register changes.
+ * USB: successful parse calls ds3231_write_time (hh:mm:ss or full YYYY-MM-DD hh:mm:ss).
  *
- * 【按键】GP14 短按：时钟 / 月历切换；月历下 GP8 下月、GP9 上月。
- * 默认假定按键按下为低电平（内部上拉）；若相反请将 kKeysActiveLow 改为 false。
+ * Keys: GP14 short press toggles clock vs month calendar; in calendar mode GP8 = next month, GP9 = previous month.
+ * Default: buttons active-low with internal pull-ups; set kKeysActiveLow to false if your wiring is active-high.
  */
 
 #include "hardware/gpio.h"
@@ -29,16 +29,13 @@
 #define DS3231_SDA_PIN  7u
 #define DS3231_SCL_PIN  6u
 
-/** 模式切换 */
+/** Clock / calendar mode toggle */
 static constexpr unsigned PIN_KEY_MODE = 14u;
-/** 月历：上一月 / 下一月（与硬件 GP8/GP9 对调后：GP8=下一月，GP9=上一月） */
+/** Calendar: previous month (GP9) / next month (GP8) after pin remap */
 static constexpr unsigned PIN_KEY_PREV_MONTH = 9u;
 static constexpr unsigned PIN_KEY_NEXT_MONTH = 8u;
 
-/**
- * true：按下接地为低电平（常见接法）；
- * false：按下为高电平。
- */
+/** true: pressed = logic low (typical ground-on-press); false: pressed = high */
 static constexpr bool kKeysActiveLow = true;
 
 static ds3231_t g_rtc;
@@ -125,7 +122,7 @@ int main() {
     }
 
     constexpr ili9488::Rotation kRotationClock = ili9488::Rotation::Portrait_180;
-    /** 月历横屏：相对竖屏旋转 90°（与原先 Landscape_90 相比为反向，现为 Landscape_270） */
+    /** Calendar uses landscape; Landscape_270 vs Landscape_90 swaps 90 degree direction */
     constexpr ili9488::Rotation kRotationCalendar = ili9488::Rotation::Landscape_270;
 
     lcd.setRotation(kRotationClock);
